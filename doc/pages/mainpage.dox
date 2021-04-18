@@ -1,0 +1,11 @@
+/*!
+	@mainpage Outline
+	
+	# An interface tp P4EST/P8EST to find points in a distributed mesh DEAL.II	
+	
+	Write something ....
+
+	The code is templated to work in 2D
+	and 3D, see the [main file](@ref MainFile).
+	
+*/
