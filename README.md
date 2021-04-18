@@ -1,11 +1,11 @@
 # P4EST Search Partition
 
-This is a C++ interface to test integration of p4est functionality 
+This is a C++ interface to test the integration of p4est functionality 
 into the Deal.II library.
 
 The lates version of p4est can be found [here](https://github.com/cburstedde/p4est).
 
-In particular function in these files are relevant: 
+In particular functions in these files are relevant: 
 * [p4est_search_partition.h](https://github.com/cburstedde/p4est/blob/master/src/p4est_search.h)
 * [p8est_search_partition.h](https://github.com/cburstedde/p4est/blob/master/src/p8est_search.h)
 
