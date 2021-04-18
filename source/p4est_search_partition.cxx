@@ -29,7 +29,7 @@ main(int argc, char *argv[])
     {
       // dimension and global refinement
       const int          dim      = 2;
-      const unsigned int n_refine = 1;
+      const unsigned int n_refine = 2;
 
       // If we want to limit the search on one rank only
       const bool         limit_search_to_single_rank = true;

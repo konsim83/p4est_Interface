@@ -175,18 +175,10 @@ PartitionSearch<dim>::my_local_point_fn(
   /* we may be up in the tree branches */
   if (pfirst < plast)
     {
-      // if (/* condition for mismatch */ 0)
-      //   {
-      // if (verbose_in_point_fn)
-      //     std::cout << "   "
-      //               << "---> stopping recursion (no approx match)" <<
-      //               std::endl;
-      //     return /* false */ 0;
-      //   }
-
       if (verbose_in_point_fn)
         std::cout << "   "
                   << "---> continuing recursion (approx match found)"
+                  << std::endl
                   << std::endl;
 
       /* an optimistic match is good enough when we're walking the tree */
@@ -196,6 +188,10 @@ PartitionSearch<dim>::my_local_point_fn(
   if (verbose_in_point_fn)
     std::cout << "   "
               << "---> stopping recursion (pfirst==plast)" << std::endl
+              << "   "
+              << "---> pfirst    : " << pfirst << std::endl
+              << "   "
+              << "---> owner rank: ?" << std::endl
               << std::endl;
 
   return /* false */ 0;
