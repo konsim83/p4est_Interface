@@ -1,7 +1,7 @@
 /*!
 	@mainpage Outline
 	
-	# An interface tp P4EST/P8EST to find points in a distributed mesh DEAL.II	
+	# An interface to p4est/p8est to find points in a distributed mesh Deal.II	
 	
 	Write something ....
 
