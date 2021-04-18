@@ -9,6 +9,10 @@ In particular function in these files are relevant:
 * [p4est_search_partition.h](https://github.com/cburstedde/p4est/blob/master/src/p4est_search.h)
 * [p8est_search_partition.h](https://github.com/cburstedde/p4est/blob/master/src/p8est_search.h)
 
+Mathematical documentation can be found in the following papers:
+* ["Parallel tree algorithms for AMR and non-standard data access"](https://arxiv.org/pdf/1803.08432.pdf), 2018
+* [Original p4est paper](https://ins.uni-bonn.de/media/public/publication-media/BursteddeWilcoxGhattas11.pdf),  2011
+* ["Recursive Algorithms for Distributed Forests of Octrees"](https://arxiv.org/pdf/1406.0089.pdf), 2015
 
 ### How to compile?
 
