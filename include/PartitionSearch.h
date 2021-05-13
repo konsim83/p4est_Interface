@@ -56,7 +56,7 @@ public:
   operator=(const PartitionSearch<dim> &other) = delete;
 
   void
-  generate_triangualtion(const unsigned int n_refine);
+  generate_triangulation(const unsigned int n_refine);
 
   int
   find_owner_rank_p4est(const dealii::Point<dim> &p);

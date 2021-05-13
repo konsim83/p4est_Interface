@@ -23,7 +23,7 @@ PartitionSearch<dim>::PartitionSearch()
 
 template <int dim>
 void
-PartitionSearch<dim>::generate_triangualtion(const unsigned int n_refine)
+PartitionSearch<dim>::generate_triangulation(const unsigned int n_refine)
 {
   dealii::TimerOutput::Scope t(computing_timer, "mesh generation");
 
@@ -35,6 +35,14 @@ PartitionSearch<dim>::generate_triangualtion(const unsigned int n_refine)
   //                                   /* colorize */ true);
 
   triangulation.refine_global(n_refine);
+
+  auto cell = triangulation.begin_active();
+  cell->set_refine_flag();
+  ++cell;
+  ++cell;
+  cell->set_refine_flag();
+  // triangulation.prepare_coarsening_and_refinement();
+  triangulation.execute_coarsening_and_refinement();
 
   // mesh outputfor dignostic purposes
   write_mesh(triangulation, "my_triangulation");
@@ -55,47 +63,56 @@ PartitionSearch<dim>::my_local_quadrant_fn(
   int                                      plast,
   void *                                   point)
 {
-  // User pointer is a parallel triangualtion
-  dealii::parallel::distributed::Triangulation<dim> *this_triangualtion_ptr =
+  // User pointer is a parallel triangulation
+  dealii::parallel::distributed::Triangulation<dim> *this_triangulation_ptr =
     static_cast<dealii::parallel::distributed::Triangulation<dim> *>(
       p4est->user_pointer);
 
   // Check some things
-  Assert(this_triangualtion_ptr != nullptr, dealii::ExcInternalError());
-  Assert(this_triangualtion_ptr == this_triangualtion_ptr,
+  Assert(this_triangulation_ptr != nullptr, dealii::ExcInternalError());
+  Assert(this_triangulation_ptr == this_triangulation_ptr,
          dealii::ExcInternalError());
   //    Assert (0 <= pfirst && pfirst <= plast && plast < g->mpisize,
   //    dealii::ExcInternalError());
   Assert(point == nullptr,
          dealii::ExcInternalError()); // point must be nullptr here
 
-  MPI_Comm this_mpi_communicator = this_triangualtion_ptr->get_communicator();
+  MPI_Comm this_mpi_communicator = this_triangulation_ptr->get_communicator();
 
   // if (verbose_in_quadrant_fn)
 
-  /* we are not trying to find local spheres */
-  //    if (pfirst == plast && pfirst == g->mpirank)
-  //      {
-  //        return 0;
-  //      }
 
-  //    std::cout << "[Rank "
-  //              <<
-  //              dealii::Utilities::MPI::this_mpi_process(this_mpi_communicator)
-  //              << "]   "
-  //              << "Quadrant function called in tree: " << which_tree << "
-  //              ("
-  //              << pfirst << ", " << plast << ")   "
-  //              << "Quadrant length   " <<
-  //              P4EST_QUADRANT_LEN(quadrant->level)
-  //              << "   on level   " << quadrant->level
-  //              << "   coord:   " << quadrant->x << " " << quadrant->y << "
-  //              ";
-  //    if (dim == 3)
-  //      {
-  //        std::cout << quadrant->z << " ";
-  //      }
-  //    std::cout << std::endl;
+
+  part_global_t *g = (part_global_t *)p4est->user_pointer;
+  /* compute coordinate range of this quadrant */
+  loopquad(g, which_tree, quadrant, g->lxyz, g->hxyz, g->dxyz);
+  /* always return 1 to search particles individually */
+  return 1;
+
+
+
+  static void loopquad(part_global_t * g,
+                       p4est_topidx_t tt,
+                       p4est_quadrant_t * quad,
+                       double lxyz[3],
+                       double hxyz[3],
+                       double dxyz[3])
+  {
+    int            i;
+    p4est_qcoord_t qh;
+
+    qh = P4EST_QUADRANT_LEN(quad->level);
+    p4est_qcoord_to_vertex(g->conn, tt, quad->x, quad->y, quad->z, lxyz);
+    p4est_qcoord_to_vertex(
+      g->conn, tt, quad->x + qh, quad->y + qh, quad->z + qh, hxyz);
+
+    for (i = 0; i < 3; ++i)
+      {
+        lxyz[i] /= g->bricklength;
+        hxyz[i] /= g->bricklength;
+        dxyz[i] = hxyz[i] - lxyz[i];
+      }
+  }
 
   return /* true */ 1;
 }
@@ -112,29 +129,31 @@ PartitionSearch<dim>::my_local_point_fn(
   int                                      plast,
   void *                                   point)
 {
-  // User pointer is a parallel triangualtion
-  dealii::parallel::distributed::Triangulation<dim> *this_triangualtion_ptr =
+  // User pointer is a parallel triangulation
+  dealii::parallel::distributed::Triangulation<dim> *this_triangulation_ptr =
     static_cast<dealii::parallel::distributed::Triangulation<dim> *>(
       p4est->user_pointer);
 
   // Check some things
-  Assert(this_triangualtion_ptr != nullptr, dealii::ExcInternalError());
-  Assert(this_triangualtion_ptr == this_triangualtion_ptr,
+  Assert(this_triangulation_ptr != nullptr, dealii::ExcInternalError());
+  Assert(this_triangulation_ptr == this_triangulation_ptr,
          dealii::ExcInternalError());
   //    Assert (0 <= pfirst && pfirst <= plast && plast < g->mpisize,
   //    dealii::ExcInternalError());
   Assert(point != nullptr,
          dealii::ExcInternalError()); // point must NOT be nullptr here
 
-  MPI_Comm this_mpi_communicator = this_triangualtion_ptr->get_communicator();
+  MPI_Comm this_mpi_communicator = this_triangulation_ptr->get_communicator();
 
   /*
    * Do some point checks for the point to return true (nonzero) or false
    * (zero).
    */
 
+  const int p4est_maxlevel = P4EST_MAXLEVEL;
+
   const auto quad_length_on_level =
-    1 << (static_cast<int>(P4EST_MAXLEVEL) - static_cast<int>(quadrant->level));
+    1 << (static_cast<int>(p4est_maxlevel) - static_cast<int>(quadrant->level));
   // P4EST_QUADRANT_LEN(quadrant->level);
 
   double *point_double = (double *)point;
@@ -144,57 +163,39 @@ PartitionSearch<dim>::my_local_point_fn(
       std::cout << "[Rank "
                 << dealii::Utilities::MPI::this_mpi_process(
                      this_mpi_communicator)
-                << "]" << std::endl;
-
-      std::cout << "   "
-                << "physical point:   ( ";
+                << "] p = ( ";
       for (unsigned int d = 0; d < dim; ++d)
         {
           if (d < dim - 1)
             std::cout << point_double[d] << " | ";
           else
-            std::cout << point_double[d] << " )" << std::endl;
+            std::cout << point_double[d] << " )";
         }
 
-      std::cout << "   "
-                << "Point function called in tree   : " << which_tree
-                << std::endl
-                << "   "
-                << "pfirst = " << pfirst << std::endl
-                << "   "
-                << "plast = " << plast << std::endl
-                << "   "
-                << "level = " << static_cast<int>(quadrant->level) << std::endl
-                << "   "
-                << "element coords:   (" << quadrant->x << " | " << quadrant->y;
+      std::cout << " | Point_fnc called | tree = " << which_tree
+                << " | pfirst = " << pfirst << " | plast = " << plast
+                << " | level = " << static_cast<int32_t>(quadrant->level)
+                << " | element coords = (" << static_cast<int32_t>(quadrant->x)
+                << " | " << static_cast<int32_t>(quadrant->y);
 
       // std::cout << " | " << quadrant->z << ")" << std::endl;
-      std::cout << ")" << std::endl;
+      std::cout << ")";
     }
 
   /* we may be up in the tree branches */
   if (pfirst < plast)
     {
       if (verbose_in_point_fn)
-        std::cout << "   "
-                  << "---> continuing recursion (approx match found)"
-                  << std::endl
-                  << std::endl;
+        std::cout << " ---> continuing ..." << std::endl << std::endl;
 
       /* an optimistic match is good enough when we're walking the tree */
       return /* true */ 1;
     }
 
   if (verbose_in_point_fn)
-    std::cout << "   "
-              << "---> stopping recursion (pfirst==plast)" << std::endl
-              << "   "
-              << "---> pfirst    : " << pfirst << std::endl
-              << "   "
-              << "---> owner rank: ?" << std::endl
-              << std::endl;
+    std::cout << " ---> stopping!" << std::endl << std::endl;
 
-  return /* false */ 0;
+  return /* false */ 1;
 }
 /*******************************/
 /*******************************/
@@ -240,11 +241,9 @@ PartitionSearch<dim>::find_owner_rank_p4est(const dealii::Point<dim> &p)
 
   std::cout << "[MPI Rank "
             << dealii::Utilities::MPI::this_mpi_process(mpi_communicator)
-            << "] searched for point   (" << p << ")" << std::endl
-            << "              -> "
-            << "done in   " << timer.cpu_time() << " sec" << std::endl
-            << "              -> "
-            << "owner rank   " << mpi_rank << std::endl;
+            << "] searched for point   (" << p << ")"
+            << " | done in   " << timer.cpu_time() << " sec"
+            << " | owner rank   " << mpi_rank << std::endl;
 
   my_point = nullptr;
   // Free the allocated memory

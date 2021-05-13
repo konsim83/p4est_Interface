@@ -42,7 +42,7 @@ main(int argc, char *argv[])
 
       // Setup partition search class
       PartitionSearch<dim> partition_search;
-      partition_search.generate_triangualtion(n_refine);
+      partition_search.generate_triangulation(n_refine);
 
       // points whose owner ranks we want to find
       // generate a number of points
